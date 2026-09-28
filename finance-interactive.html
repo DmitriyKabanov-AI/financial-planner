@@ -1,0 +1,1620 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>📊 Финансовый планировщик — Интерактивный</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0a0c14;
+    --bg2: #12151f;
+    --bg3: #1c2030;
+    --bg4: #242840;
+    --accent: #7c3aed;
+    --accent2: #a78bfa;
+    --green: #10b981;
+    --green2: #34d399;
+    --yellow: #f59e0b;
+    --red: #ef4444;
+    --red2: #f87171;
+    --blue: #3b82f6;
+    --text: #f1f5f9;
+    --text2: #94a3b8;
+    --text3: #64748b;
+    --border: #1e2340;
+    --border2: #2d3560;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; font-size: 14px; min-height: 100vh; }
+
+  .app { display: flex; height: 100vh; overflow: hidden; }
+  .sidebar {
+    width: 260px; flex-shrink: 0;
+    background: var(--bg2);
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    overflow-y: auto;
+    transition: transform 0.3s;
+  }
+  .main { flex: 1; overflow-y: auto; }
+
+  .logo { padding: 20px 18px; border-bottom: 1px solid var(--border); }
+  .logo-title { font-size: 1.05rem; font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 8px; }
+  .logo-sub { font-size: 0.75rem; color: var(--text2); margin-top: 3px; }
+  .nav { flex: 1; padding: 10px 0; }
+  .nav-section { padding: 6px 18px 4px; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text3); font-weight: 600; }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 18px; cursor: pointer; color: var(--text2);
+    font-size: 0.88rem; font-weight: 500;
+    transition: all 0.15s; position: relative;
+    border-left: 3px solid transparent;
+  }
+  .nav-item:hover { color: var(--text); background: var(--bg3); }
+  .nav-item.active { color: var(--accent2); background: rgba(124,58,237,0.1); border-left-color: var(--accent); }
+  .nav-item .badge-count { margin-left: auto; background: var(--accent); color: #fff; border-radius: 10px; padding: 1px 7px; font-size: 0.72rem; }
+
+  .sidebar-footer { padding: 14px 18px; border-top: 1px solid var(--border); }
+  .btn-sm { padding: 7px 14px; border-radius: 8px; border: none; cursor: pointer; font-size: 0.8rem; font-weight: 600; transition: all 0.2s; }
+  .btn-accent { background: var(--accent); color: #fff; }
+  .btn-accent:hover { background: #6d28d9; }
+  .btn-ghost { background: var(--bg3); color: var(--text2); border: 1px solid var(--border2); }
+  .btn-ghost:hover { color: var(--text); background: var(--bg4); }
+  .btn-danger { background: rgba(239,68,68,0.15); color: var(--red2); border: 1px solid rgba(239,68,68,0.3); }
+  .btn-danger:hover { background: rgba(239,68,68,0.25); }
+  .btn-green { background: rgba(16,185,129,0.15); color: var(--green2); border: 1px solid rgba(16,185,129,0.3); }
+  .btn-green:hover { background: rgba(16,185,129,0.25); }
+
+  .topbar {
+    background: var(--bg2); border-bottom: 1px solid var(--border);
+    padding: 12px 24px; display: flex; align-items: center; gap: 12px;
+    position: sticky; top: 0; z-index: 50;
+  }
+  .topbar-title { font-size: 1rem; font-weight: 700; }
+  .topbar-sub { font-size: 0.78rem; color: var(--text2); }
+  .topbar-actions { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+
+  .page { padding: 24px; display: none; animation: fadeIn 0.2s; }
+  .page.active { display: block; }
+  @keyframes fadeIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+
+  .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 22px; }
+  .kpi {
+    background: var(--bg2); border: 1px solid var(--border); border-radius: 12px;
+    padding: 16px 18px; position: relative; overflow: hidden;
+  }
+  .kpi::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; border-radius:12px 12px 0 0; }
+  .kpi.green::before { background: var(--green); }
+  .kpi.red::before { background: var(--red); }
+  .kpi.yellow::before { background: var(--yellow); }
+  .kpi.blue::before { background: var(--blue); }
+  .kpi.purple::before { background: var(--accent); }
+  .kpi-label { font-size: 0.72rem; color: var(--text2); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+  .kpi-value { font-size: 1.4rem; font-weight: 800; }
+  .kpi-sub { font-size: 0.75rem; color: var(--text2); margin-top: 4px; }
+  .kpi.green .kpi-value { color: var(--green2); }
+  .kpi.red .kpi-value { color: var(--red2); }
+  .kpi.yellow .kpi-value { color: var(--yellow); }
+  .kpi.blue .kpi-value { color: #60a5fa; }
+  .kpi.purple .kpi-value { color: var(--accent2); }
+
+  .section { background: var(--bg2); border: 1px solid var(--border); border-radius: 14px; margin-bottom: 18px; overflow: hidden; }
+  .section-header { padding: 14px 18px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
+  .section-title { font-size: 0.95rem; font-weight: 700; }
+  .section-sub { font-size: 0.78rem; color: var(--text2); margin-left: 4px; }
+  .section-actions { margin-left: auto; display: flex; gap: 8px; }
+  .section-body { padding: 18px; }
+  .section-body.no-pad { padding: 0; }
+
+  .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 18px; }
+  .chart-box { background: var(--bg2); border: 1px solid var(--border); border-radius: 14px; padding: 18px; }
+  .chart-box canvas { max-height: 250px; }
+  .chart-title { font-size: 0.88rem; font-weight: 600; margin-bottom: 14px; color: var(--text2); }
+
+  .tbl-scroll { overflow-x: auto; }
+  table.data-table { width: 100%; border-collapse: collapse; }
+  table.data-table thead th {
+    background: var(--bg3); padding: 10px 12px; text-align: left;
+    font-size: 0.72rem; color: var(--text2); text-transform: uppercase;
+    letter-spacing: 0.04em; white-space: nowrap; position: sticky; top: 0;
+  }
+  table.data-table tbody tr { border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.1s; }
+  table.data-table tbody tr:hover { background: var(--bg3); }
+  table.data-table td { padding: 9px 12px; white-space: nowrap; }
+  .c-green { color: var(--green2); }
+  .c-red { color: var(--red2); }
+  .c-yellow { color: var(--yellow); }
+  .c-blue { color: #60a5fa; }
+  .c-dim { color: var(--text2); }
+  .pill { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 0.7rem; font-weight: 600; }
+  .pill-green { background: rgba(16,185,129,0.15); color: var(--green2); }
+  .pill-red { background: rgba(239,68,68,0.15); color: var(--red2); }
+  .pill-yellow { background: rgba(245,158,11,0.15); color: var(--yellow); }
+  .pill-blue { background: rgba(59,130,246,0.15); color: #60a5fa; }
+  .pill-purple { background: rgba(124,58,237,0.15); color: var(--accent2); }
+  tr.row-bad { background: rgba(239,68,68,0.04); }
+  tr.row-bad td:nth-child(1) { border-left: 3px solid var(--red); }
+  tr.row-warn { background: rgba(245,158,11,0.04); }
+  tr.row-warn td:nth-child(1) { border-left: 3px solid var(--yellow); }
+  tr.row-today { background: rgba(124,58,237,0.06); }
+  tr.row-today td:nth-child(1) { border-left: 3px solid var(--accent); }
+
+  .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+  .form-group { display: flex; flex-direction: column; gap: 5px; }
+  .form-group label { font-size: 0.78rem; color: var(--text2); font-weight: 500; }
+  .form-group input, .form-group select, .form-group textarea {
+    background: var(--bg3); border: 1px solid var(--border2);
+    border-radius: 8px; padding: 9px 12px; color: var(--text);
+    font-size: 0.88rem; outline: none; transition: border-color 0.2s;
+    width: 100%;
+  }
+  .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: var(--accent); }
+  .form-group select option { background: var(--bg3); }
+  .form-actions { display: flex; gap: 8px; margin-top: 14px; }
+
+  .events-list { display: flex; flex-direction: column; gap: 8px; }
+  .event-item {
+    background: var(--bg3); border: 1px solid var(--border2);
+    border-radius: 10px; padding: 10px 14px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .event-icon { font-size: 1.3rem; flex-shrink: 0; }
+  .event-info { flex: 1; }
+  .event-name { font-size: 0.88rem; font-weight: 600; }
+  .event-meta { font-size: 0.76rem; color: var(--text2); margin-top: 2px; }
+  .event-amount { font-size: 1rem; font-weight: 700; }
+  .event-del { padding: 4px 8px; border-radius: 6px; border: none; background: rgba(239,68,68,0.15); color: var(--red2); cursor: pointer; font-size: 0.8rem; }
+  .event-del:hover { background: rgba(239,68,68,0.3); }
+
+  .modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 999; align-items: center; justify-content: center; }
+  .modal-bg.open { display: flex; }
+  .modal-box { background: var(--bg2); border: 1px solid var(--border2); border-radius: 16px; padding: 28px; width: 500px; max-width: 96vw; max-height: 90vh; overflow-y: auto; }
+  .modal-title { font-size: 1.05rem; font-weight: 700; margin-bottom: 20px; display: flex; align-items: center; gap: 8px; }
+  .modal-close { margin-left: auto; background: none; border: none; color: var(--text2); cursor: pointer; font-size: 1.1rem; }
+  .modal-close:hover { color: var(--text); }
+  .modal-footer { display: flex; gap: 8px; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
+
+  .alert { padding: 12px 16px; border-radius: 10px; font-size: 0.83rem; margin-bottom: 14px; line-height: 1.5; display: flex; gap: 10px; align-items: flex-start; }
+  .alert-info { background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.25); color: #93c5fd; }
+  .alert-warn { background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.25); color: var(--yellow); }
+  .alert-success { background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.25); color: var(--green2); }
+  .alert-danger { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.25); color: var(--red2); }
+
+  .inner-tabs { display: flex; gap: 2px; margin-bottom: 16px; background: var(--bg3); border-radius: 10px; padding: 4px; width: fit-content; }
+  .inner-tab { padding: 6px 16px; border-radius: 8px; cursor: pointer; font-size: 0.82rem; font-weight: 500; color: var(--text2); transition: all 0.15s; }
+  .inner-tab.active { background: var(--accent); color: #fff; }
+  .inner-tab:hover:not(.active) { color: var(--text); }
+
+  .ovr-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--accent2); vertical-align: middle; margin-left: 4px; }
+
+  .slider-row { display: flex; align-items: center; gap: 12px; }
+  input[type=range] { -webkit-appearance: none; appearance: none; flex: 1; height: 6px; border-radius: 3px; background: var(--border2); outline: none; }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--accent); cursor: pointer; }
+  .slider-val { min-width: 70px; text-align: right; font-weight: 700; color: var(--accent2); }
+
+  .progress-bar-wrap { background: var(--bg3); border-radius: 6px; height: 8px; overflow: hidden; }
+  .progress-bar-fill { height: 100%; border-radius: 6px; transition: width 0.4s; }
+
+  @media (max-width: 900px) {
+    .sidebar { position: fixed; left: 0; top: 0; bottom: 0; z-index: 200; transform: translateX(-100%); }
+    .sidebar.open { transform: translateX(0); }
+    .chart-grid { grid-template-columns: 1fr; }
+    .kpi-row { grid-template-columns: 1fr 1fr; }
+  }
+
+  .divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+  .text-dim { color: var(--text2); }
+  .text-xs { font-size: 0.75rem; }
+  .mt-8 { margin-top: 8px; }
+  .mt-16 { margin-top: 16px; }
+  .flex { display: flex; }
+  .items-center { align-items: center; }
+  .gap-8 { gap: 8px; }
+  .gap-12 { gap: 12px; }
+  .ml-auto { margin-left: auto; }
+  .bold { font-weight: 700; }
+  .w-full { width: 100%; }
+
+  .empty-state { text-align: center; padding: 40px 20px; color: var(--text2); }
+  .empty-state-icon { font-size: 2.5rem; margin-bottom: 12px; }
+  .empty-state-title { font-size: 0.95rem; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+  .empty-state-sub { font-size: 0.82rem; }
+
+  .notif { position: fixed; bottom: 20px; right: 20px; background: var(--bg2); border: 1px solid var(--border2); border-radius: 10px; padding: 12px 18px; font-size: 0.85rem; z-index: 9999; transform: translateY(80px); opacity: 0; transition: all 0.3s; min-width: 220px; }
+  .notif.show { transform: translateY(0); opacity: 1; }
+  .notif.notif-success { border-color: rgba(16,185,129,0.4); }
+  .notif.notif-error { border-color: rgba(239,68,68,0.4); }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg2); }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text3); }
+
+  .timeline { display: flex; flex-direction: column; gap: 0; position: relative; margin-bottom: 24px; }
+  .timeline::before { content: ''; position: absolute; left: 120px; top: 0; bottom: 0; width: 2px; background: var(--border); }
+  .tl-item { display: flex; gap: 0; position: relative; }
+  .tl-date { width: 120px; padding: 12px 16px 12px 0; text-align: right; font-size: 0.8rem; color: var(--text2); flex-shrink: 0; }
+  .tl-dot { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; margin-top: 14px; margin-left: -6px; margin-right: 16px; border: 2px solid var(--bg); }
+  .tl-body { flex: 1; padding: 10px 0; }
+  .tl-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px; }
+  .tl-title { font-weight: 600; font-size: 0.9rem; }
+  .tl-desc { font-size: 0.82rem; color: var(--text2); margin-top: 4px; }
+  .tl-amount { font-size: 1rem; font-weight: 700; margin-top: 6px; }
+  .tl-amount.green { color: var(--green2); }
+  .tl-amount.red { color: var(--red2); }
+  .summary-note { background: var(--bg3); border-radius: 8px; padding: 10px 14px; font-size: 0.82rem; color: var(--text2); margin-top: 8px; }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- SIDEBAR -->
+  <div class="sidebar" id="sidebar">
+  <div class="logo">
+    <div class="logo-title">📊 Финплан</div>
+    <div class="logo-sub">Интерактивный планировщик</div>
+  </div>
+  <div class="nav">
+    <div class="nav-section">Обзор</div>
+    <div class="nav-item active" data-page="dashboard" onclick="goPage('dashboard')">📈 Дашборд</div>
+    <div class="nav-item" data-page="calendar" onclick="goPage('calendar')">📅 Календарь дней</div>
+
+    <div class="nav-section">Управление</div>
+    <div class="nav-item" data-page="income-events" onclick="goPage('income-events')">💰 Доходы <span class="badge-count" id="badge-income">0</span></div>
+    <div class="nav-item" data-page="expense-events" onclick="goPage('expense-events')">💸 Расходы <span class="badge-count" id="badge-expense">0</span></div>
+    <div class="nav-item" data-page="goals" onclick="goPage('goals')">🎯 Цели <span class="badge-count" id="badge-goals">0</span></div>
+
+    <div class="nav-section">Настройки</div>
+    <div class="nav-item" data-page="settings" onclick="goPage('settings')">⚙️ Настройки</div>
+    <div class="nav-item" data-page="export" onclick="goPage('export')">💾 Экспорт / Импорт</div>
+  </div>
+  <div class="sidebar-footer">
+    <button class="btn-sm btn-accent w-full" onclick="recalcAndRender()">🔄 Пересчитать</button>
+  </div>
+</div>
+
+  <!-- MAIN -->
+  <div class="main" id="main">
+    <div class="topbar">
+      <button class="btn-sm btn-ghost" id="menu-btn" onclick="toggleSidebar()" style="display:none;">☰</button>
+      <div>
+        <div class="topbar-title" id="page-title">📈 Дашборд</div>
+        <div class="topbar-sub" id="page-sub">Общий обзор финансового плана</div>
+      </div>
+      <div class="topbar-actions">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <label style="font-size:0.78rem;color:var(--text2);">Будни ₽</label>
+          <input type="number" id="global-weekday" value="1000" min="0" max="99999"
+            style="width:80px;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:6px 10px;color:var(--text);font-size:0.88rem;font-weight:700;outline:none;"
+            onchange="recalcAndRender()">
+          <label style="font-size:0.78rem;color:var(--text2);">Выходные ₽</label>
+          <input type="number" id="global-weekend" value="1500" min="0" max="99999"
+            style="width:80px;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:6px 10px;color:var(--text);font-size:0.88rem;font-weight:700;outline:none;"
+            onchange="recalcAndRender()">
+        </div>
+        <button class="btn-sm btn-accent" onclick="openEventModal('income')">+ Доход</button>
+        <button class="btn-sm btn-ghost" onclick="openEventModal('expense')">+ Расход</button>
+      </div>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div class="page active" id="page-dashboard">
+      <div class="kpi-row" id="kpi-row"></div>
+      <div class="chart-grid">
+        <div class="chart-box">
+          <div class="chart-title">💵 Баланс по дням</div>
+          <canvas id="c-balance"></canvas>
+        </div>
+        <div class="chart-box">
+          <div class="chart-title">💳 Долг по кредитке</div>
+          <canvas id="c-credit"></canvas>
+        </div>
+        <div class="chart-box">
+          <div class="chart-title">📅 По месяцам (доход vs расход)</div>
+          <canvas id="c-monthly"></canvas>
+        </div>
+        <div class="chart-box">
+          <div class="chart-title">🍩 Структура расходов</div>
+          <canvas id="c-pie"></canvas>
+        </div>
+      </div>
+      <div class="section">
+        <div class="section-header">
+          <span class="section-title">🗓 Ключевые события</span>
+        </div>
+        <div class="section-body" id="timeline-container"></div>
+      </div>
+    </div>
+
+    <!-- CALENDAR -->
+    <div class="page" id="page-calendar">
+      <div style="display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap;">
+        <div class="inner-tabs" id="month-filter-tabs"></div>
+        <div style="display:flex;gap:6px;margin-left:auto;">
+          <button class="btn-sm btn-ghost" onclick="setCalFilter('all')">Все</button>
+          <button class="btn-sm btn-ghost" onclick="setCalFilter('events')">С событиями</button>
+          <button class="btn-sm btn-ghost" onclick="setCalFilter('bad')">Проблемные</button>
+        </div>
+      </div>
+
+      <div class="section" style="margin-bottom:14px;">
+        <div class="section-body" style="padding:14px 18px;">
+          <canvas id="c-cal-balance" style="max-height:120px;"></canvas>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-header">
+          <span class="section-title">📅 Все дни</span>
+          <span class="section-sub" id="cal-row-count"></span>
+          <div class="section-actions">
+            <button class="btn-sm btn-ghost" onclick="clearAllOverrides()">🗑 Сбросить правки</button>
+          </div>
+        </div>
+        <div class="section-body no-pad">
+          <div class="tbl-scroll" style="max-height:600px;overflow-y:auto;">
+            <table class="data-table" id="cal-table">
+              <thead>
+                <tr>
+                  <th>Дата</th>
+                  <th>Д</th>
+                  <th>Доход ₽</th>
+                  <th>Расход ₽</th>
+                  <th>В день ₽</th>
+                  <th>Баланс ₽</th>
+                  <th>Долг ₽</th>
+                  <th>Накопл. итого ₽</th>
+                  <th>События</th>
+                  <th>Заметка</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="cal-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- INCOME EVENTS -->
+    <div class="page" id="page-income-events">
+      <div class="alert alert-info">💡 Добавляйте разовые или регулярные доходы. Регулярные будут применяться каждый указанный день месяца в период действия.</div>
+      <div class="section" style="margin-bottom:14px;">
+        <div class="section-header">
+          <span class="section-title">💰 Доходы</span>
+          <div class="section-actions">
+            <button class="btn-sm btn-green" onclick="openEventModal('income')">+ Добавить доход</button>
+          </div>
+        </div>
+        <div class="section-body">
+          <div class="events-list" id="income-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- EXPENSE EVENTS -->
+    <div class="page" id="page-expense-events">
+      <div class="alert alert-info">💡 Добавляйте разовые или регулярные расходы. Разовые — конкретная дата. Регулярные — повторяются каждый указанный день месяца.</div>
+      <div class="section" style="margin-bottom:14px;">
+        <div class="section-header">
+          <span class="section-title">💸 Расходы</span>
+          <div class="section-actions">
+            <button class="btn-sm btn-danger" onclick="openEventModal('expense')">+ Добавить расход</button>
+          </div>
+        </div>
+        <div class="section-body">
+          <div class="events-list" id="expense-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- GOALS -->
+    <div class="page" id="page-goals">
+      <div class="alert alert-info">🎯 Добавляйте финансовые цели с датами и суммами. Дашборд покажет прогресс.</div>
+      <div class="section">
+        <div class="section-header">
+          <span class="section-title">🎯 Цели</span>
+          <div class="section-actions">
+            <button class="btn-sm btn-accent" onclick="openGoalModal()">+ Добавить цель</button>
+          </div>
+        </div>
+        <div class="section-body">
+          <div id="goals-list" style="display:flex;flex-direction:column;gap:12px;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div class="page" id="page-settings">
+      <div class="section" style="margin-bottom:14px;">
+        <div class="section-header"><span class="section-title">📅 Период планирования</span></div>
+        <div class="section-body">
+          <div class="form-grid">
+            <div class="form-group"><label>Начало периода</label><input type="date" id="s-start" value="2026-01-01"></div>
+            <div class="form-group"><label>Конец периода</label><input type="date" id="s-end" value="2026-12-31"></div>
+          </div>
+        </div>
+      </div>
+      <div class="section" style="margin-bottom:14px;">
+        <div class="section-header"><span class="section-title">💵 Начальный баланс</span></div>
+        <div class="section-body">
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Текущий баланс (₽)</label>
+              <input type="number" id="s-cash" value="0" min="0">
+            </div>
+            <div class="form-group">
+              <label>Общая сумма долга (₽)</label>
+              <input type="number" id="s-credit-debt" value="0" min="0" step="1000">
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="section" style="margin-bottom:14px;">
+        <div class="section-header"><span class="section-title">💸 Ежедневные траты</span></div>
+        <div class="section-body">
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Будни (Пн–Пт), ₽/день</label>
+              <div class="slider-row">
+                <input type="range" id="s-weekday-range" min="0" max="10000" step="100" value="1000" oninput="syncDailySliders()">
+                <div class="slider-val" id="s-weekday-val">1 000 ₽</div>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Выходные (Сб–Вс), ₽/день</label>
+              <div class="slider-row">
+                <input type="range" id="s-weekend-range" min="0" max="10000" step="100" value="1500" oninput="syncDailySliders()">
+                <div class="slider-val" id="s-weekend-val">1 500 ₽</div>
+              </div>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button class="btn-sm btn-accent" onclick="applySettings()">✅ Применить</button>
+          </div>
+        </div>
+      </div>
+      <div class="section">
+        <div class="section-header"><span class="section-title">🗑 Сбросить данные</span></div>
+        <div class="section-body">
+          <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <button class="btn-sm btn-danger" onclick="clearAllData()">🗑 Очистить ВСЕ данные</button>
+            <button class="btn-sm btn-ghost" onclick="clearAllOverrides()">Сбросить правки дней</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- EXPORT -->
+    <div class="page" id="page-export">
+      <div class="section" style="margin-bottom:14px;">
+        <div class="section-header"><span class="section-title">💾 Экспорт</span></div>
+        <div class="section-body">
+          <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <button class="btn-sm btn-accent" onclick="exportJSON()">📤 Экспорт JSON</button>
+          </div>
+        </div>
+      </div>
+      <div class="section">
+        <div class="section-header"><span class="section-title">📂 Импорт из файла</span></div>
+        <div class="section-body">
+          <div class="form-group" style="max-width:400px;">
+            <label>Выберите JSON-файл с данными</label>
+            <input type="file" id="import-file-input" accept=".json,application/json" style="background:var(--bg3); border:1px solid var(--border2); border-radius:8px; padding:8px 12px; color:var(--text);">
+            <div style="margin-top:8px; font-size:0.75rem; color:var(--text2);">Файл должен быть в формате JSON, экспортированный из этого планировщика.</div>
+          </div>
+          <div class="form-actions">
+            <button class="btn-sm btn-accent" onclick="importFromFile()">📂 Загрузить и импортировать</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+<!-- EVENT MODAL -->
+<div class="modal-bg" id="event-modal">
+  <div class="modal-box">
+    <div class="modal-title" id="event-modal-title">+ Событие</div>
+    <div class="form-grid">
+      <div class="form-group" style="grid-column:1/-1;">
+        <label>Название</label>
+        <input type="text" id="ev-name" placeholder="Например: Зарплата">
+      </div>
+      <div class="form-group">
+        <label>Сумма (₽)</label>
+        <input type="number" id="ev-amount" placeholder="0" min="0">
+      </div>
+      <div class="form-group">
+        <label>Тип</label>
+        <select id="ev-recur">
+          <option value="once">Разовый</option>
+          <option value="daily">Ежедневный</option>
+          <option value="monthly">Ежемесячный</option>
+          <option value="weekly">Еженедельный</option>
+        </select>
+      </div>
+      <div class="form-group" id="ev-date-group">
+        <label>Дата</label>
+        <input type="date" id="ev-date">
+      </div>
+      <div class="form-group" id="ev-dayofmonth-group" style="display:none;">
+        <label>День месяца</label>
+        <input type="number" id="ev-dayofmonth" placeholder="1-31" min="1" max="31">
+      </div>
+      <div class="form-group" id="ev-daterange-group" style="display:none;grid-column:1/-1;">
+        <label>Период действия (начало — конец)</label>
+        <div style="display:flex;gap:8px;">
+          <input type="date" id="ev-from" style="flex:1;">
+          <input type="date" id="ev-to" style="flex:1;">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Категория</label>
+        <select id="ev-category">
+          <option value="Зарплата">Зарплата</option>
+          <option value="Бонус">Бонус</option>
+          <option value="Подработка">Подработка</option>
+          <option value="Семья">Семья</option>
+          <option value="Аренда">Аренда</option>
+          <option value="ЖКХ">ЖКХ</option>
+          <option value="Саморазвитие">Саморазвитие</option>
+          <option value="Транспорт">Транспорт</option>
+          <option value="Развлечения">Развлечения</option>
+          <option value="Кредит">Кредит</option>
+          <option value="Прочее">Прочее</option>
+          <option value="Доллары">Доллары</option>
+        </select>
+      </div>
+      <div class="form-group" style="grid-column:1/-1;">
+        <label>Комментарий (необязательно)</label>
+        <input type="text" id="ev-note" placeholder="Дополнительная информация">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-sm btn-accent" id="ev-save-btn" onclick="saveEvent()">💾 Сохранить</button>
+      <button class="btn-sm btn-ghost" onclick="closeEventModal()">Отмена</button>
+      <button class="btn-sm btn-danger" id="ev-delete-btn" style="display:none;margin-left:auto;" onclick="deleteEvent()">🗑 Удалить</button>
+    </div>
+  </div>
+</div>
+
+<!-- DAY MODAL -->
+<div class="modal-bg" id="day-modal">
+  <div class="modal-box" style="width:440px;">
+    <div class="modal-title">
+      <span id="day-modal-title">📅 День</span>
+      <button class="modal-close" onclick="closeDayModal()">✕</button>
+    </div>
+    <div id="day-modal-events" style="margin-bottom:14px;"></div>
+    <hr class="divider">
+    <div class="form-grid" style="grid-template-columns:1fr;">
+      <div class="form-group">
+        <label>Трата в этот день (₽) <span style="color:var(--text3)">— переопределяет глобальную</span></label>
+        <input type="number" id="dm-daily" placeholder="" min="0">
+      </div>
+      <div class="form-group">
+        <label>Разовый доход в этот день (₽)</label>
+        <input type="number" id="dm-income" placeholder="0" min="0">
+      </div>
+      <div class="form-group">
+        <label>Разовый расход в этот день (₽)</label>
+        <input type="number" id="dm-expense" placeholder="0" min="0">
+      </div>
+      <div class="form-group">
+        <label>Заметка</label>
+        <input type="text" id="dm-note" placeholder="Что происходит в этот день?">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-sm btn-accent" onclick="saveDayOverride()">💾 Сохранить</button>
+      <button class="btn-sm btn-ghost" onclick="closeDayModal()">Отмена</button>
+      <button class="btn-sm btn-danger" onclick="resetDayOverride()" style="margin-left:auto;">🗑 Сбросить</button>
+    </div>
+  </div>
+</div>
+
+<!-- GOAL MODAL -->
+<div class="modal-bg" id="goal-modal">
+  <div class="modal-box" style="width:420px;">
+    <div class="modal-title">
+      <span>🎯 Цель</span>
+      <button class="modal-close" onclick="closeGoalModal()">✕</button>
+    </div>
+    <div class="form-grid" style="grid-template-columns:1fr;">
+      <div class="form-group"><label>Название цели</label><input type="text" id="gm-name" placeholder="Например: Накопить на отпуск"></div>
+      <div class="form-group"><label>Целевой баланс (₽)</label><input type="number" id="gm-amount" placeholder="100000" min="0"></div>
+      <div class="form-group"><label>Дата достижения</label><input type="date" id="gm-date"></div>
+      <div class="form-group"><label>Иконка (emoji)</label><input type="text" id="gm-icon" placeholder="🏖" maxlength="4"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-sm btn-accent" onclick="saveGoal()">💾 Сохранить</button>
+      <button class="btn-sm btn-ghost" onclick="closeGoalModal()">Отмена</button>
+      <button class="btn-sm btn-danger" id="gm-del-btn" style="display:none;margin-left:auto;" onclick="deleteGoal()">🗑 Удалить</button>
+    </div>
+  </div>
+</div>
+
+<!-- NOTIFICATION -->
+<div class="notif" id="notif"></div>
+
+<script>
+// ============================================================
+// DATA STORE
+// ============================================================
+let store = {
+  startDate: '2026-01-01',
+  endDate:   '2026-12-31',
+  cashStart: 0,
+  creditStart: 0,
+  weekdayDaily: 1000,
+  weekendDaily: 1500,
+  events: [],
+  goals: [],
+  dayOverrides: {}
+};
+
+let simRows = [];
+let charts = {};
+let editingEventId = null;
+let editingGoalId  = null;
+let editingDayKey  = null;
+let calFilter = 'all';
+let calMonthFilter = null;
+
+// ============================================================
+// UTILS
+// ============================================================
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
+function fmt(n) { return new Intl.NumberFormat('ru-RU').format(Math.round(n)); }
+function fmtDate(s) {
+  const d = new Date(s+'T12:00:00');
+  const M=['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
+  return `${d.getDate()} ${M[d.getMonth()]}`;
+}
+function fmtDateFull(s) {
+  const d = new Date(s+'T12:00:00');
+  const M=['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+  const W=['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
+  return `${W[d.getDay()]}, ${d.getDate()} ${M[d.getMonth()]} ${d.getFullYear()}`;
+}
+function dayOfWeekShort(s) { return ['Вс','Пн','Вт','Ср','Чт','Пт','Сб'][new Date(s+'T12:00:00').getDay()]; }
+function isWeekend(dateStr) {
+  const dow = new Date(dateStr+'T12:00:00').getDay();
+  return dow === 0 || dow === 6;
+}
+function monthName(m) { return ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сент.','Окт.','Ноябрь','Декабрь'][m]; }
+function dateStr(d) { return d.toISOString().slice(0,10); }
+function addDays(s, n) {
+  const d = new Date(s+'T12:00:00'); d.setDate(d.getDate()+n); return dateStr(d);
+}
+function daysBetween(s1, s2) {
+  return Math.round((new Date(s2+'T12:00:00') - new Date(s1+'T12:00:00')) / 86400000);
+}
+function notify(msg, type='success') {
+  const el = document.getElementById('notif');
+  el.textContent = (type==='success'?'✅ ':'❌ ') + msg;
+  el.className = `notif notif-${type} show`;
+  setTimeout(()=>el.classList.remove('show'), 2500);
+}
+function destroyChart(id) { if(charts[id]){charts[id].destroy();delete charts[id];} }
+function saveStore() { localStorage.setItem('finplan_v2', JSON.stringify(store)); }
+function loadStore() {
+  const s = localStorage.getItem('finplan_v2');
+  if(s) {
+    try {
+      const parsed = JSON.parse(s);
+      store = {...store,...parsed};
+      // Миграция: старый defaultDaily → weekdayDaily / weekendDaily
+      if (parsed.defaultDaily !== undefined) {
+        if (parsed.weekdayDaily === undefined) store.weekdayDaily = parsed.defaultDaily;
+        if (parsed.weekendDaily === undefined) store.weekendDaily = parsed.defaultDaily;
+      }
+    } catch(e){}
+  }
+}
+
+// ============================================================
+// SIMULATION
+// ============================================================
+function buildDayList() {
+  const days = [];
+  let cur = store.startDate;
+  while(cur <= store.endDate) {
+    days.push(cur);
+    cur = addDays(cur, 1);
+  }
+  return days;
+}
+
+function getGlobalDaily(dateStr) {
+  const wdInput = document.getElementById('global-weekday');
+  const weInput = document.getElementById('global-weekend');
+  const wdVal = wdInput ? (parseInt(wdInput.value) || 0) : (store.weekdayDaily || 0);
+  const weVal = weInput ? (parseInt(weInput.value) || 0) : (store.weekendDaily || 0);
+  return isWeekend(dateStr) ? weVal : wdVal;
+}
+
+function simulate() {
+  const days = buildDayList();
+  let cash = store.cashStart || 0;
+  let creditDebt = store.creditStart || 0;
+  const rows = [];
+
+  // Precompute events per day
+  const eventMap = {};
+
+  store.events.forEach(ev => {
+    if(ev.recur === 'once') {
+      if(ev.date >= store.startDate && ev.date <= store.endDate) {
+        if(!eventMap[ev.date]) eventMap[ev.date] = [];
+        eventMap[ev.date].push(ev);
+      }
+    } else if(ev.recur === 'monthly') {
+      const from = ev.from || store.startDate;
+      const to   = ev.to   || store.endDate;
+      days.forEach(d => {
+        const dom = new Date(d+'T12:00:00').getDate();
+        if(dom === ev.dayOfMonth && d >= from && d <= to) {
+          if(!eventMap[d]) eventMap[d] = [];
+          eventMap[d].push(ev);
+        }
+      });
+    } else if(ev.recur === 'weekly') {
+      const from = ev.from || store.startDate;
+      const to   = ev.to   || store.endDate;
+      let cur = from;
+      while(cur <= to) {
+        if(cur >= store.startDate && cur <= store.endDate) {
+          if(!eventMap[cur]) eventMap[cur] = [];
+          eventMap[cur].push(ev);
+        }
+        cur = addDays(cur, 7);
+      }
+    } else if(ev.recur === 'daily') {
+      const from = ev.from || store.startDate;
+      const to   = ev.to   || store.endDate;
+      days.forEach(d => {
+        if (d >= from && d <= to) {
+          if(!eventMap[d]) eventMap[d] = [];
+          eventMap[d].push(ev);
+        }
+      });
+    }
+  });
+
+  const catTotals = {};
+
+  days.forEach((d, i) => {
+    const ov = store.dayOverrides[d] || {};
+    const globalDaily = getGlobalDaily(d);
+    const daily = ov.daily !== undefined ? ov.daily : globalDaily;
+    const evs = eventMap[d] || [];
+
+    let income = ov.income || 0;
+    let expense = (ov.expense || 0) + daily;
+
+    evs.forEach(ev => {
+      if(ev.type === 'income') {
+        income += ev.amount;
+      } else {
+        expense += ev.amount;
+        if (ev.category === 'Кредит' || ev.name.toLowerCase().includes('погашение')) {
+          creditDebt -= ev.amount;
+        }
+        const cat = ev.category || 'Прочее';
+        catTotals[cat] = (catTotals[cat]||0) + ev.amount;
+      }
+    });
+
+    catTotals['Ежедневные'] = (catTotals['Ежедневные']||0) + daily;
+
+    cash += income - expense;
+
+    let status = 'ok';
+    if(cash < 0) status = 'bad';
+    else if(cash < 5000) status = 'warn';
+
+    rows.push({ date:d, income, expense, daily, cash, creditDebt: creditDebt, events:evs, status, note:ov.note||'', cumIncome:0, cumExpense:0 });
+  });
+
+  let ci=0, ce=0;
+  rows.forEach(r=>{ ci+=r.income; ce+=r.expense; r.cumIncome=ci; r.cumExpense=ce; });
+
+  simRows = rows;
+  window._catTotals = catTotals;
+  return rows;
+}
+
+// ============================================================
+// RENDER DASHBOARD
+// ============================================================
+function renderDashboard() {
+  const rows = simRows;
+  const last = rows[rows.length-1];
+  const totalIncome = rows.reduce((s,r)=>s+r.income,0);
+  const totalExpense = rows.reduce((s,r)=>s+r.expense,0);
+  const badDays = rows.filter(r=>r.status==='bad').length;
+  const maxBalance = Math.max(...rows.map(r=>r.cash));
+  const minBalance = Math.min(...rows.map(r=>r.cash));
+
+  const creditValue = last.creditDebt;
+  let creditLabel = 'Долг кредитки';
+  let creditCls = 'red';
+  if (creditValue < 0) {
+    creditLabel = 'Переплата / Пополнение';
+    creditCls = 'green';
+  } else if (creditValue === 0) {
+    creditLabel = 'Кредитка погашена';
+    creditCls = 'green';
+  }
+
+  document.getElementById('kpi-row').innerHTML = [
+    {label:'Финальный баланс', value: fmt(last.cash)+'₽', sub:'на '+fmtDate(last.date), cls: last.cash>0 ? 'green' : 'red'},
+    {label:'Всего доходов', value: fmt(totalIncome)+'₽', sub: rows.length+' дней', cls: 'green'},
+    {label:'Всего расходов', value: fmt(totalExpense)+'₽', sub: 'включая ежедневные', cls: 'red'},
+    {label:'Макс. баланс', value: fmt(maxBalance)+'₽', sub: 'пик накоплений', cls: 'blue'},
+    {label:'Макс. убыток', value: fmt(minBalance)+'₽', sub: 'пик расходов', cls: minBalance<0 ? 'red' : 'yellow'},
+    { label: creditLabel, value: fmt(Math.abs(creditValue)) + '₽', sub: 'на конец периода', cls: creditCls },
+    {label:'Проблемных дней', value: badDays, sub: badDays===0 ? '✅ Всё хорошо!' : '❌ Уход в минус', cls: badDays===0 ? 'green' : 'red'},
+    {label:'Событий', value: store.events.length, sub: `${store.events.filter(e=>e.type==='income').length} доходов / ${store.events.filter(e=>e.type==='expense').length} расходов`, cls: 'purple'},
+  ].map(k => `<div class="kpi ${k.cls}"><div class="kpi-label">${k.label}</div><div class="kpi-value">${k.value}</div><div class="kpi-sub">${k.sub}</div></div>`).join('');
+
+  destroyChart('c-balance');
+  const labels = rows.map(r=>fmtDate(r.date));
+  const balances = rows.map(r=>r.cash);
+  const ctx1 = document.getElementById('c-balance').getContext('2d');
+  charts['c-balance'] = new Chart(ctx1, {
+    type:'line',
+    data:{labels, datasets:[{
+      label:'Баланс',data:balances,
+      borderColor:'#10b981',backgroundColor:ctx=>{
+        const g=ctx.chart.ctx.createLinearGradient(0,0,0,200);
+        g.addColorStop(0,'rgba(16,185,129,0.25)');g.addColorStop(1,'rgba(16,185,129,0)');return g;
+      },fill:true,tension:0.35,pointRadius:0,pointHoverRadius:5,borderWidth:2
+    }]},
+    options:{responsive:true,interaction:{mode:'index',intersect:false},
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${fmt(c.raw)}₽`}}},
+      scales:{x:{ticks:{maxTicksLimit:10,color:'#64748b',font:{size:10}},grid:{color:'#1e2340'}},
+              y:{ticks:{color:'#64748b',callback:v=>fmt(v)+'₽',font:{size:10}},grid:{color:'#1e2340'}}}}
+  });
+
+  destroyChart('c-credit');
+  const creditData = rows.map(r => -r.creditDebt);
+  const ctxCredit = document.getElementById('c-credit').getContext('2d');
+  charts['c-credit'] = new Chart(ctxCredit, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Долг / Переплата',
+        data: creditData,
+        borderColor: '#ef4444',
+        backgroundColor: ctx => {
+          const g = ctx.chart.ctx.createLinearGradient(0, 0, 0, 200);
+          g.addColorStop(0, 'rgba(239,68,68,0.25)');
+          g.addColorStop(1, 'rgba(239,68,68,0)');
+          return g;
+        },
+        fill: true,
+        tension: 0.35,
+        pointRadius: 0,
+        pointHoverRadius: 5,
+        borderWidth: 2
+      }]
+    },
+    options: {
+      responsive: true,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: c => {
+              const val = c.raw;
+              if (val === 0) return 'Долг погашен';
+              if (val < 0) return `Долг: ${fmt(-val)}₽`;
+              return `Переплата: ${fmt(val)}₽`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: { ticks: { maxTicksLimit: 12, color: '#64748b', font: { size: 10 } }, grid: { color: '#1e2340' } },
+        y: {
+          ticks: {
+            color: '#64748b',
+            callback: v => {
+              if (v === 0) return '0 ₽';
+              return v > 0 ? `+${fmt(v)} ₽` : `-${fmt(-v)} ₽`;
+            },
+            font: { size: 10 }
+          },
+          grid: { color: '#1e2340' },
+          title: { display: true, text: 'Долг (–) / Переплата (+)', color: '#64748b' }
+        }
+      }
+    }
+  });
+
+  const monthlyData = {};
+  rows.forEach(r => {
+    const d = new Date(r.date + 'T12:00:00');
+    const year = d.getFullYear();
+    const month = d.getMonth();
+    const key = `${year}-${month.toString().padStart(2, '0')}`;
+    if (!monthlyData[key]) {
+      monthlyData[key] = { year, month, income: 0, expense: 0, label: `${monthName(month)} ${year}` };
+    }
+    monthlyData[key].income += r.income;
+    monthlyData[key].expense += r.expense;
+  });
+  const sortedKeys = Object.keys(monthlyData).sort();
+  const monthLabels = sortedKeys.map(k => monthlyData[k].label);
+  const incomes = sortedKeys.map(k => monthlyData[k].income);
+  const expenses = sortedKeys.map(k => monthlyData[k].expense);
+
+  destroyChart('c-monthly');
+  const ctx3 = document.getElementById('c-monthly').getContext('2d');
+  charts['c-monthly'] = new Chart(ctx3, {
+    type: 'bar',
+    data: {
+      labels: monthLabels,
+      datasets: [
+        { label: 'Доходы', data: incomes, backgroundColor: 'rgba(16,185,129,0.75)', borderRadius: 6 },
+        { label: 'Расходы', data: expenses, backgroundColor: 'rgba(239,68,68,0.75)', borderRadius: 6 }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: { tooltip: { callbacks: { label: c => `${c.dataset.label}: ${fmt(c.raw)}₽` } } },
+      scales: {
+        x: { ticks: { color: '#64748b', font: { size: 11 }, maxRotation: 45, minRotation: 45 }, grid: { color: '#1e2340' } },
+        y: { ticks: { color: '#64748b', callback: v => fmt(v) + '₽', font: { size: 10 } }, grid: { color: '#1e2340' } }
+      }
+    }
+  });
+
+  const cats = window._catTotals || {};
+  const catKeys = Object.keys(cats).filter(k=>cats[k]>0);
+  const colors = ['#10b981','#ef4444','#f59e0b','#3b82f6','#8b5cf6','#ec4899','#14b8a6','#f97316','#84cc16','#06b6d4'];
+  destroyChart('c-pie');
+  const ctx4 = document.getElementById('c-pie').getContext('2d');
+  charts['c-pie'] = new Chart(ctx4, {
+    type:'doughnut',
+    data:{labels:catKeys, datasets:[{data:catKeys.map(k=>cats[k]),backgroundColor:colors.slice(0,catKeys.length),borderColor:'#0a0c14',borderWidth:2}]},
+    options:{responsive:true,plugins:{
+      legend:{position:'right',labels:{color:'#94a3b8',font:{size:11},boxWidth:14}},
+      tooltip:{callbacks:{label:c=>`${c.label}: ${fmt(c.raw)}₽`}}
+    }}
+  });
+
+  renderTimeline();
+}
+
+// ============================================================
+// RENDER CALENDAR
+// ============================================================
+function renderCalendar() {
+  const months = [...new Set(simRows.map(r=>new Date(r.date+'T12:00:00').getMonth()))];
+  const mtabs = document.getElementById('month-filter-tabs');
+  mtabs.innerHTML = months.map(m=>`<div class="inner-tab ${calMonthFilter===m?'active':''}" onclick="setMonthFilter(${m})">${monthName(m)}</div>`).join('');
+
+  destroyChart('c-cal-balance');
+  const ctx = document.getElementById('c-cal-balance').getContext('2d');
+  charts['c-cal-balance'] = new Chart(ctx, {
+    type:'line',
+    data:{
+      labels: simRows.map(r=>fmtDate(r.date)),
+      datasets:[{label:'Баланс',data:simRows.map(r=>r.cash),borderColor:'#a78bfa',backgroundColor:'rgba(124,58,237,0.08)',fill:true,tension:0.3,pointRadius:0,borderWidth:2}]
+    },
+    options:{responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${fmt(c.raw)}₽`}}},
+      scales:{x:{ticks:{maxTicksLimit:12,color:'#64748b',font:{size:10}},grid:{color:'#1e2340'}},
+              y:{ticks:{color:'#64748b',callback:v=>fmt(v)+'₽',font:{size:10}},grid:{color:'#1e2340'}}}}
+  });
+
+  const tbody = document.getElementById('cal-tbody');
+  const today = dateStr(new Date());
+  let visible = 0;
+  tbody.innerHTML = simRows.map(r=>{
+    if(calMonthFilter !== null && new Date(r.date+'T12:00:00').getMonth() !== calMonthFilter) return '';
+    if(calFilter==='events' && r.events.length===0 && !store.dayOverrides[r.date]) return '';
+    if(calFilter==='bad' && r.status==='ok') return '';
+    visible++;
+    const ov = store.dayOverrides[r.date];
+    const rc = r.date===today?'row-today':r.status==='bad'?'row-bad':r.status==='warn'?'row-warn':'';
+    const evPills = r.events.map(ev=>`<span class="pill ${ev.type==='income'?'pill-green':'pill-red'}" title="${ev.name}: ${fmt(ev.amount)}₽">${ev.name.length>12?ev.name.slice(0,12)+'…':ev.name}</span>`).join(' ');
+    const isWe = isWeekend(r.date);
+    return `<tr class="${rc}" onclick="openDayModal('${r.date}')">
+      <td><strong>${fmtDate(r.date)}</strong>${r.date===today?'<span class="pill pill-purple" style="margin-left:4px;">сегодня</span>':''}</td>
+      <td class="c-dim">${dayOfWeekShort(r.date)}${isWe?' <span class="pill pill-blue" style="padding:1px 5px;font-size:0.62rem;">вых</span>':''}</td>
+      <td class="${r.income>0?'c-green':'c-dim'}">${r.income>0?'+'+fmt(r.income):'—'}</td>
+      <td class="c-red">-${fmt(r.expense)}</td>
+      <td class="${ov&&ov.daily!==undefined?'c-blue':'c-dim'}">${fmt(r.daily)}${ov&&ov.daily!==undefined?'<span class="ovr-dot"></span>':''}</td>
+      <td class="${r.cash<0?'c-red':r.cash<5000?'c-yellow':'c-green'}"><strong>${fmt(r.cash)}</strong></td>
+      <td class="${r.creditDebt>0?'c-red':'c-green'}">${fmt(r.creditDebt)}₽</td>
+      <td class="c-dim">${fmt(r.cumIncome - r.cumExpense + (store.cashStart||0))}</td>
+      <td>${evPills||'<span class="c-dim">—</span>'}</td>
+      <td class="c-dim" style="max-width:120px;overflow:hidden;text-overflow:ellipsis;">${r.note||ov?.note||''}</td>
+      <td><button class="btn-sm btn-ghost" style="padding:3px 8px;font-size:0.72rem;" onclick="event.stopPropagation();openDayModal('${r.date}')">✏️</button></td>
+    </tr>`;
+  }).join('');
+  document.getElementById('cal-row-count').textContent = `${visible} из ${simRows.length} дней`;
+}
+
+function setCalFilter(f) { calFilter=f; calMonthFilter=null; renderCalendar(); }
+function setMonthFilter(m) { calMonthFilter=calMonthFilter===m?null:m; renderCalendar(); }
+
+// ============================================================
+// RENDER EVENT LISTS
+// ============================================================
+function renderEventLists() {
+  const income = store.events.filter(e=>e.type==='income');
+  const expense = store.events.filter(e=>e.type==='expense');
+  document.getElementById('badge-income').textContent = income.length;
+  document.getElementById('badge-expense').textContent = expense.length;
+
+  function evHtml(evs, type) {
+    if(!evs.length) return `<div class="empty-state"><div class="empty-state-icon">${type==='income'?'💰':'💸'}</div><div class="empty-state-title">Нет событий</div><div class="empty-state-sub">Нажмите «+ Добавить» чтобы создать первое событие</div></div>`;
+    return evs.map(ev=>{
+      let meta = '';
+      if(ev.recur==='once') meta=`Разовый · ${fmtDate(ev.date)}`;
+      else if(ev.recur==='daily') meta=`Ежедневно · ${fmtDate(ev.from||store.startDate)} – ${fmtDate(ev.to||store.endDate)}`;
+      else if(ev.recur==='monthly') meta=`Ежемесячно · ${ev.dayOfMonth}-е · ${fmtDate(ev.from||store.startDate)} – ${fmtDate(ev.to||store.endDate)}`;
+      else if(ev.recur==='weekly') meta=`Еженедельно · ${fmtDate(ev.from||store.startDate)} – ${fmtDate(ev.to||store.endDate)}`;
+      return `<div class="event-item">
+        <div class="event-icon">${ev.type==='income'?'💰':'💸'}</div>
+        <div class="event-info">
+          <div class="event-name">${ev.name}</div>
+          <div class="event-meta">${meta}${ev.category?' · '+ev.category:''}${ev.note?' · '+ev.note:''}</div>
+        </div>
+        <div class="event-amount ${ev.type==='income'?'c-green':'c-red'}">${ev.type==='income'?'+':'-'}${fmt(ev.amount)}₽</div>
+        <button class="event-del" onclick="openEditEvent('${ev.id}')">✏️</button>
+        <button class="event-del" onclick="deleteEventById('${ev.id}')">✕</button>
+      </div>`;
+    }).join('');
+  }
+
+  document.getElementById('income-list').innerHTML = evHtml(income,'income');
+  document.getElementById('expense-list').innerHTML = evHtml(expense,'expense');
+}
+
+// ============================================================
+// RENDER GOALS
+// ============================================================
+function renderGoals() {
+  document.getElementById('badge-goals').textContent = store.goals.length;
+  const gl = document.getElementById('goals-list');
+  if(!store.goals.length) {
+    gl.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🎯</div><div class="empty-state-title">Нет целей</div><div class="empty-state-sub">Добавьте финансовую цель и следите за прогрессом</div></div>`;
+    return;
+  }
+  gl.innerHTML = store.goals.map(g=>{
+    const row = simRows.find(r=>r.date===g.date);
+    const balance = row ? row.cash : null;
+    const ok = balance !== null && balance >= g.amount;
+    const pct = balance !== null ? Math.min(100, Math.max(0, (balance/g.amount)*100)) : 0;
+    return `<div class="section" style="margin:0;">
+      <div class="section-header">
+        <span style="font-size:1.4rem;">${g.icon||'🎯'}</span>
+        <div>
+          <div class="section-title">${g.name}</div>
+          <div class="section-sub">К ${fmtDate(g.date)} · Цель: ${fmt(g.amount)}₽</div>
+        </div>
+        <div class="section-actions">
+          <button class="btn-sm btn-ghost" onclick="openEditGoal('${g.id}')">✏️ Изменить</button>
+        </div>
+      </div>
+      <div class="section-body">
+        <div style="display:flex;justify-content:space-between;font-size:0.8rem;color:var(--text2);margin-bottom:6px;">
+          <span>Баланс на дату: <strong class="${ok?'c-green':'c-red'}">${balance!==null?fmt(balance)+'₽':'н/д'}</strong></span>
+          <span>Цель: <strong>${fmt(g.amount)}₽</strong></span>
+        </div>
+        <div class="progress-bar-wrap"><div class="progress-bar-fill" style="width:${pct}%;background:${ok?'var(--green)':'var(--red)'}"></div></div>
+        <div style="margin-top:10px;font-weight:600;font-size:0.85rem;" class="${ok?'c-green':'c-red'}">${ok?'✅ Цель будет достигнута!':'❌ Недостаточно средств к этой дате'}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ==================== ТАЙМЛАЙН КЛЮЧЕВЫХ СОБЫТИЙ ====================
+function renderTimeline() {
+  const container = document.getElementById('timeline-container');
+  if (!container) return;
+
+  const timelineItems = [];
+
+  store.events.forEach(ev => {
+    if (ev.recur === 'once' && ev.date) {
+      const amount = ev.type === 'income' ? ev.amount : -ev.amount;
+      timelineItems.push({
+        date: ev.date,
+        title: ev.name,
+        desc: ev.category ? `Категория: ${ev.category}` : '',
+        amount: amount,
+        amountClass: ev.type === 'income' ? 'green' : 'red',
+        isGoal: false,
+        note: ev.note
+      });
+    }
+  });
+
+  store.goals.forEach(goal => {
+    if (goal.date) {
+      timelineItems.push({
+        date: goal.date,
+        title: `🎯 ${goal.name}`,
+        desc: `Целевая сумма: ${fmt(goal.amount)}₽`,
+        amount: null,
+        amountClass: '',
+        isGoal: true,
+        note: ''
+      });
+    }
+  });
+
+  const firstDate = store.startDate;
+  timelineItems.push({
+    date: firstDate,
+    title: 'Начало планирования',
+    desc: `Стартовый баланс: ${fmt(store.cashStart)}₽, долг по кредитке: ${fmt(store.creditStart)}₽`,
+    amount: null,
+    amountClass: '',
+    isGoal: false,
+    note: ''
+  });
+
+  timelineItems.sort((a, b) => a.date.localeCompare(b.date));
+
+  const unique = [];
+  const keyMap = new Set();
+  for (const item of timelineItems) {
+    const key = `${item.date}_${item.title}`;
+    if (!keyMap.has(key)) {
+      keyMap.add(key);
+      unique.push(item);
+    }
+  }
+
+  let html = '<div class="timeline">';
+  for (const item of unique) {
+    const row = simRows.find(r => r.date === item.date);
+    const cashAfter = row ? row.cash : null;
+
+    let amountHtml = '';
+    if (item.amount !== null) {
+      const sign = item.amount >= 0 ? '+' : '';
+      const cls = item.amount >= 0 ? 'green' : 'red';
+      amountHtml = `<div class="tl-amount ${cls}">${sign}${fmt(Math.abs(item.amount))}₽</div>`;
+    }
+
+    let balanceHtml = '';
+    if (cashAfter !== null) {
+      balanceHtml = `<div class="summary-note">💵 Баланс после: <strong style="color: ${cashAfter >= 0 ? 'var(--green)' : 'var(--red)'}">${fmt(cashAfter)}₽</strong></div>`;
+    }
+
+    let dotColor = '#6c63ff';
+    if (item.isGoal) dotColor = '#eab308';
+    else if (item.amount !== null) dotColor = item.amount >= 0 ? '#22c55e' : '#ef4444';
+
+    html += `
+      <div class="tl-item">
+        <div class="tl-date">${fmtDate(item.date)}</div>
+        <div class="tl-dot" style="background: ${dotColor}"></div>
+        <div class="tl-body">
+          <div class="tl-card">
+            <div class="tl-title">${item.title}</div>
+            ${item.desc ? `<div class="tl-desc">${item.desc}</div>` : ''}
+            ${amountHtml}
+            ${balanceHtml}
+            ${item.note ? `<div class="tl-desc text-dim">📝 ${item.note}</div>` : ''}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+// ============================================================
+// RECALC + FULL RENDER
+// ============================================================
+function recalcAndRender() {
+  simulate();
+  const page = document.querySelector('.page.active');
+  if(!page) return;
+  const id = page.id;
+  if(id==='page-dashboard') renderDashboard();
+  else if(id==='page-calendar') renderCalendar();
+  else if(id==='page-income-events'||id==='page-expense-events') renderEventLists();
+  else if(id==='page-goals') renderGoals();
+  saveStore();
+}
+
+// ============================================================
+// NAV
+// ============================================================
+const pageInfo = {
+  'dashboard':       {title:'📈 Дашборд',       sub:'Общий обзор финансового плана',    render:renderDashboard},
+  'calendar':        {title:'📅 Календарь дней', sub:'Детализация по каждому дню',       render:renderCalendar},
+  'income-events':   {title:'💰 Доходы',         sub:'Регулярные и разовые поступления', render:renderEventLists},
+  'expense-events':  {title:'💸 Расходы',        sub:'Регулярные и разовые траты',       render:renderEventLists},
+  'goals':           {title:'🎯 Цели',           sub:'Финансовые ориентиры',             render:renderGoals},
+  'settings':        {title:'⚙️ Настройки',      sub:'Параметры планирования',           render:renderSettings},
+  'export':          {title:'💾 Экспорт / Импорт',sub:'Сохранение и загрузка данных',   render:()=>{}},
+};
+function goPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  const activePage = document.getElementById('page-' + name);
+  if (activePage) activePage.classList.add('active');
+
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const activeNav = document.querySelector(`.nav-item[data-page="${name}"]`);
+  if (activeNav) activeNav.classList.add('active');
+
+  if (window.pageInfo && pageInfo[name]) {
+    document.getElementById('page-title').textContent = pageInfo[name].title || name;
+    document.getElementById('page-sub').textContent = pageInfo[name].sub || '';
+  } else {
+    document.getElementById('page-title').textContent = name;
+    document.getElementById('page-sub').textContent = '';
+  }
+
+  if (typeof simulate === 'function') simulate();
+  if (pageInfo && pageInfo[name] && typeof pageInfo[name].render === 'function') {
+    pageInfo[name].render();
+  }
+}
+
+// ============================================================
+// EVENT MODAL
+// ============================================================
+let evType = 'income';
+function openEventModal(type) {
+  evType = type;
+  editingEventId = null;
+  document.getElementById('event-modal-title').textContent = (type==='income'?'💰 Новый доход':'💸 Новый расход');
+  document.getElementById('ev-name').value='';
+  document.getElementById('ev-amount').value='';
+  document.getElementById('ev-date').value=store.startDate;
+  document.getElementById('ev-dayofmonth').value='';
+  document.getElementById('ev-from').value=store.startDate;
+  document.getElementById('ev-to').value=store.endDate;
+  document.getElementById('ev-note').value='';
+  document.getElementById('ev-recur').value='once';
+  document.getElementById('ev-category').value=type==='income'?'Зарплата':'Прочее';
+  document.getElementById('ev-delete-btn').style.display='none';
+  updateEventRecurUI();
+  const catSel = document.getElementById('ev-category');
+  const incCats = ['Зарплата','Бонус','Подработка','Семья','Прочее'];
+  const expCats = ['Аренда','ЖКХ','Саморазвитие','Транспорт','Развлечения','Кредит','Прочее','Доллары'];
+  const cats = type==='income'?incCats:expCats;
+  catSel.innerHTML = cats.map(c=>`<option value="${c}">${c}</option>`).join('');
+  document.getElementById('event-modal').classList.add('open');
+  document.getElementById('ev-name').focus();
+}
+function openEditEvent(id) {
+  const ev = store.events.find(e=>e.id===id);
+  if(!ev) return;
+  evType = ev.type;
+  editingEventId = id;
+  document.getElementById('event-modal-title').textContent = (ev.type==='income'?'✏️ Редактировать доход':'✏️ Редактировать расход');
+  document.getElementById('ev-name').value=ev.name;
+  document.getElementById('ev-amount').value=ev.amount;
+  document.getElementById('ev-date').value=ev.date||store.startDate;
+  document.getElementById('ev-dayofmonth').value=ev.dayOfMonth||'';
+  document.getElementById('ev-from').value=ev.from||store.startDate;
+  document.getElementById('ev-to').value=ev.to||store.endDate;
+  document.getElementById('ev-note').value=ev.note||'';
+  document.getElementById('ev-recur').value=ev.recur||'once';
+  const catSel = document.getElementById('ev-category');
+  const incCats = ['Зарплата','Бонус','Подработка','Семья','Прочее'];
+  const expCats = ['Аренда','ЖКХ','Саморазвитие','Транспорт','Развлечения','Кредит','Прочее','Доллары'];
+  const cats = ev.type==='income'?incCats:expCats;
+  catSel.innerHTML = cats.map(c=>`<option value="${c}">${c}</option>`).join('');
+  catSel.value=ev.category||cats[0];
+  document.getElementById('ev-delete-btn').style.display='block';
+  updateEventRecurUI();
+  document.getElementById('event-modal').classList.add('open');
+}
+function updateEventRecurUI() {
+  const r = document.getElementById('ev-recur').value;
+  document.getElementById('ev-date-group').style.display = r==='once'?'':'none';
+  document.getElementById('ev-dayofmonth-group').style.display = r==='monthly'?'':'none';
+  document.getElementById('ev-daterange-group').style.display = (r!=='once')?'':'none';
+}
+document.getElementById('ev-recur').addEventListener('change', updateEventRecurUI);
+function saveEvent() {
+  const name=document.getElementById('ev-name').value.trim();
+  const amount=parseFloat(document.getElementById('ev-amount').value)||0;
+  if(!name){notify('Укажите название','error');return;}
+  if(!amount){notify('Укажите сумму','error');return;}
+  const recur=document.getElementById('ev-recur').value;
+  const ev = {
+    id: editingEventId||uid(), type:evType, name, amount, recur,
+    date: document.getElementById('ev-date').value,
+    dayOfMonth: parseInt(document.getElementById('ev-dayofmonth').value)||1,
+    from: document.getElementById('ev-from').value,
+    to: document.getElementById('ev-to').value,
+    category: document.getElementById('ev-category').value,
+    note: document.getElementById('ev-note').value,
+  };
+  if(editingEventId) {
+    const idx=store.events.findIndex(e=>e.id===editingEventId);
+    if(idx>=0) store.events[idx]=ev;
+  } else {
+    store.events.push(ev);
+  }
+  closeEventModal();
+  recalcAndRender();
+  notify('Событие сохранено');
+}
+function deleteEvent() { if(editingEventId) deleteEventById(editingEventId); }
+function deleteEventById(id) {
+  store.events = store.events.filter(e=>e.id!==id);
+  closeEventModal();
+  recalcAndRender();
+  notify('Событие удалено');
+}
+function closeEventModal() { document.getElementById('event-modal').classList.remove('open'); editingEventId=null; }
+document.getElementById('event-modal').addEventListener('click',e=>{if(e.target===document.getElementById('event-modal'))closeEventModal();});
+
+// ============================================================
+// DAY MODAL
+// ============================================================
+function openDayModal(dateKey) {
+  editingDayKey = dateKey;
+  const row = simRows.find(r=>r.date===dateKey);
+  const ov = store.dayOverrides[dateKey]||{};
+  document.getElementById('day-modal-title').textContent = '📅 '+fmtDateFull(dateKey);
+  document.getElementById('dm-daily').value = ov.daily!==undefined?ov.daily:'';
+  document.getElementById('dm-income').value = ov.income||'';
+  document.getElementById('dm-expense').value = ov.expense||'';
+  document.getElementById('dm-note').value = ov.note||'';
+
+  // Обновляем плейсхолдер с учётом будни/выходные
+  const isWe = isWeekend(dateKey);
+  const defVal = getGlobalDaily(dateKey);
+  document.getElementById('dm-daily').placeholder = `По умолчанию: ${fmt(defVal)} (${isWe?'выходной':'будни'})`;
+
+  const evs = row ? row.events : [];
+  document.getElementById('day-modal-events').innerHTML = evs.length
+    ? `<div style="display:flex;flex-direction:column;gap:6px;">`+evs.map(ev=>`
+        <div style="display:flex;justify-content:space-between;background:var(--bg3);border-radius:8px;padding:8px 12px;font-size:0.83rem;">
+          <span>${ev.type==='income'?'💰':'💸'} ${ev.name}</span>
+          <span class="${ev.type==='income'?'c-green':'c-red'}">${ev.type==='income'?'+':'-'}${fmt(ev.amount)}₽</span>
+        </div>`).join('')+`</div>`
+    : `<div style="font-size:0.82rem;color:var(--text2);">Нет запланированных событий на этот день.</div>`;
+  document.getElementById('day-modal').classList.add('open');
+  document.getElementById('dm-daily').focus();
+}
+function saveDayOverride() {
+  if(!editingDayKey) return;
+  const daily = document.getElementById('dm-daily').value;
+  const income = parseFloat(document.getElementById('dm-income').value)||0;
+  const expense = parseFloat(document.getElementById('dm-expense').value)||0;
+  const note = document.getElementById('dm-note').value;
+  if(!daily && !income && !expense && !note) {
+    delete store.dayOverrides[editingDayKey];
+  } else {
+    store.dayOverrides[editingDayKey] = {
+      ...(daily!==''?{daily:parseFloat(daily)||0}:{}),
+      ...(income?{income}:{}),
+      ...(expense?{expense}:{}),
+      ...(note?{note}:{}),
+    };
+  }
+  closeDayModal();
+  recalcAndRender();
+  notify('День обновлён');
+}
+function resetDayOverride() {
+  if(!editingDayKey) return;
+  delete store.dayOverrides[editingDayKey];
+  closeDayModal();
+  recalcAndRender();
+  notify('Правки дня сброшены');
+}
+function closeDayModal() { document.getElementById('day-modal').classList.remove('open'); editingDayKey=null; }
+document.getElementById('day-modal').addEventListener('click',e=>{if(e.target===document.getElementById('day-modal'))closeDayModal();});
+function clearAllOverrides() { if(confirm('Сбросить все ручные правки по дням?')){store.dayOverrides={};recalcAndRender();notify('Правки сброшены');} }
+
+// ============================================================
+// GOAL MODAL
+// ============================================================
+function openGoalModal() {
+  editingGoalId=null;
+  document.getElementById('gm-name').value='';
+  document.getElementById('gm-amount').value='';
+  document.getElementById('gm-date').value=store.endDate;
+  document.getElementById('gm-icon').value='🎯';
+  document.getElementById('gm-del-btn').style.display='none';
+  document.getElementById('goal-modal').classList.add('open');
+}
+function openEditGoal(id) {
+  const g=store.goals.find(x=>x.id===id);if(!g)return;
+  editingGoalId=id;
+  document.getElementById('gm-name').value=g.name;
+  document.getElementById('gm-amount').value=g.amount;
+  document.getElementById('gm-date').value=g.date;
+  document.getElementById('gm-icon').value=g.icon||'🎯';
+  document.getElementById('gm-del-btn').style.display='block';
+  document.getElementById('goal-modal').classList.add('open');
+}
+function saveGoal() {
+  const name=document.getElementById('gm-name').value.trim();
+  const amount=parseFloat(document.getElementById('gm-amount').value)||0;
+  const date=document.getElementById('gm-date').value;
+  if(!name||!amount||!date){notify('Заполните все поля','error');return;}
+  const g={id:editingGoalId||uid(),name,amount,date,icon:document.getElementById('gm-icon').value||'🎯'};
+  if(editingGoalId){const i=store.goals.findIndex(x=>x.id===editingGoalId);if(i>=0)store.goals[i]=g;}
+  else store.goals.push(g);
+  closeGoalModal();recalcAndRender();notify('Цель сохранена');
+}
+function deleteGoal(){if(editingGoalId){store.goals=store.goals.filter(x=>x.id!==editingGoalId);closeGoalModal();recalcAndRender();notify('Цель удалена');}}
+function closeGoalModal(){document.getElementById('goal-modal').classList.remove('open');editingGoalId=null;}
+document.getElementById('goal-modal').addEventListener('click',e=>{if(e.target===document.getElementById('goal-modal'))closeGoalModal();});
+
+// ============================================================
+// SETTINGS
+// ============================================================
+function renderSettings() {
+  document.getElementById('s-start').value=store.startDate;
+  document.getElementById('s-end').value=store.endDate;
+  document.getElementById('s-cash').value=store.cashStart||0;
+  document.getElementById('s-credit-debt').value = store.creditStart || 0;
+
+  const wd = store.weekdayDaily != null ? store.weekdayDaily : 1000;
+  const we = store.weekendDaily != null ? store.weekendDaily : 1500;
+
+  document.getElementById('s-weekday-range').value = wd;
+  document.getElementById('s-weekend-range').value = we;
+  document.getElementById('s-weekday-val').textContent = fmt(wd) + '₽';
+  document.getElementById('s-weekend-val').textContent = fmt(we) + '₽';
+}
+function syncDailySliders() {
+  const wd = document.getElementById('s-weekday-range').value;
+  const we = document.getElementById('s-weekend-range').value;
+  document.getElementById('s-weekday-val').textContent = fmt(wd) + '₽';
+  document.getElementById('s-weekend-val').textContent = fmt(we) + '₽';
+  document.getElementById('global-weekday').value = wd;
+  document.getElementById('global-weekend').value = we;
+  recalcAndRender();
+}
+function applySettings() {
+  store.startDate=document.getElementById('s-start').value;
+  store.endDate=document.getElementById('s-end').value;
+  store.cashStart=parseFloat(document.getElementById('s-cash').value)||0;
+  store.creditStart = parseFloat(document.getElementById('s-credit-debt').value) || 0;
+  store.weekdayDaily = parseInt(document.getElementById('s-weekday-range').value)||0;
+  store.weekendDaily = parseInt(document.getElementById('s-weekend-range').value)||0;
+  document.getElementById('global-weekday').value = store.weekdayDaily;
+  document.getElementById('global-weekend').value = store.weekendDaily;
+  recalcAndRender();notify('Настройки применены');
+}
+function clearAllData() {
+  if(!confirm('Удалить ВСЕ данные? Это нельзя отменить.')) return;
+  store = {
+    startDate: '2026-01-01',
+    endDate: '2026-12-31',
+    cashStart: 0,
+    creditStart: 0,
+    weekdayDaily: 1000,
+    weekendDaily: 1500,
+    events: [],
+    goals: [],
+    dayOverrides: {}
+  };
+  localStorage.removeItem('finplan_v2');
+  document.getElementById('global-weekday').value = store.weekdayDaily;
+  document.getElementById('global-weekend').value = store.weekendDaily;
+  recalcAndRender();notify('Данные очищены');
+}
+
+// ============================================================
+// SAMPLE DATA
+// ============================================================
+function loadSampleData() {
+  if(!confirm('Загрузить пример данных? Текущие будут перезаписаны.')) return;
+  store = {
+    startDate:'2026-01-01', endDate:'2026-12-31',
+    cashStart: 0, creditStart: 0,
+    weekdayDaily: 1000, weekendDaily: 1500,
+    dayOverrides: {},
+    goals: [
+      {id:'g1',name:'Накопить к 10 июня',amount:150000,date:'2026-06-10',icon:'🏦'},
+      {id:'g2',name:'Кредитка ноль',amount:0,date:'2026-07-25',icon:'💳'},
+      {id:'g3',name:'Выжить до 10 августа',amount:1,date:'2026-08-10',icon:'🏁'},
+    ],
+    events: [
+      {id:'e1',type:'income',name:'Мама',amount:10000,recur:'monthly',dayOfMonth:22,from:'2026-01-22',to:'2026-08-10',category:'Семья',note:''},
+      {id:'e2',type:'income',name:'Аванс (ЗП)',amount:60000,recur:'monthly',dayOfMonth:10,from:'2026-02-10',to:'2026-08-10',category:'Зарплата',note:''},
+      {id:'e3',type:'income',name:'ЗП',amount:40000,recur:'monthly',dayOfMonth:25,from:'2026-01-25',to:'2026-08-10',category:'Зарплата',note:''},
+      {id:'e4',type:'expense',name:'Аренда (старая)',amount:20000,recur:'once',date:'2026-02-01',category:'Аренда',note:'Последний платёж'},
+      {id:'e5',type:'expense',name:'Аренда + залог',amount:70000,recur:'once',date:'2026-02-16',category:'Аренда',note:'Заезд в новую квартиру'},
+      {id:'e6',type:'expense',name:'Аренда (новая)',amount:35000,recur:'monthly',dayOfMonth:16,from:'2026-03-16',to:'2026-08-10',category:'Аренда',note:''},
+      {id:'e7',type:'expense',name:'Крупная трата',amount:100000,recur:'once',date:'2026-06-10',category:'Прочее',note:'Запланированная цель'},
+      {id:'e8',type:'expense',name:'Погашение кредитки',amount:24000,recur:'once',date:'2026-07-25',category:'Кредит',note:'Полное погашение долга'},
+    ]
+  };
+  saveStore();
+  document.getElementById('global-weekday').value = store.weekdayDaily;
+  document.getElementById('global-weekend').value = store.weekendDaily;
+  recalcAndRender();
+  notify('Пример данных загружен');
+}
+
+// ============================================================
+// EXPORT / IMPORT
+// ============================================================
+function exportJSON() {
+  const blob=new Blob([JSON.stringify(store,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='finplan.json';a.click();
+}
+function exportCSV() {
+  const header='Дата,День недели,Доход,Расход,В день,Баланс,Нарастающий итог,Заметка\n';
+  const rows=simRows.map(r=>[r.date,dayOfWeekShort(r.date),r.income,r.expense,r.daily,r.cash,r.cumIncome-r.cumExpense+(store.cashStart||0),r.note||''].join(',')).join('\n');
+  const blob=new Blob(['\uFEFF'+header+rows],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='finplan.csv';a.click();
+}
+function importJSON() {
+  try {
+    const data=JSON.parse(document.getElementById('import-json').value);
+    store={...store,...data};
+    saveStore();
+    document.getElementById('global-weekday').value = store.weekdayDaily ?? 1000;
+    document.getElementById('global-weekend').value = store.weekendDaily ?? 1500;
+    recalcAndRender();
+    notify('Данные импортированы');
+  } catch(e){ notify('Ошибка парсинга JSON','error'); }
+}
+function importFromFile() {
+  const fileInput = document.getElementById('import-file-input');
+  const file = fileInput.files[0];
+  if (!file) {
+    notify('Выберите JSON-файл', 'error');
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const data = JSON.parse(e.target.result);
+      store = { ...store, ...data };
+      saveStore();
+      document.getElementById('global-weekday').value = store.weekdayDaily ?? 1000;
+      document.getElementById('global-weekend').value = store.weekendDaily ?? 1500;
+      recalcAndRender();
+      notify('Данные успешно импортированы из файла');
+      fileInput.value = '';
+    } catch(err) {
+      notify('Ошибка: неверный формат JSON', 'error');
+    }
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+// ============================================================
+// RESPONSIVE
+// ============================================================
+function checkResize() {
+  const isMob=window.innerWidth<=900;
+  document.getElementById('menu-btn').style.display=isMob?'block':'none';
+}
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+}
+window.addEventListener('resize',checkResize);
+checkResize();
+
+// ============================================================
+// INIT
+// ============================================================
+loadStore();
+document.getElementById('global-weekday').value = store.weekdayDaily ?? 1000;
+document.getElementById('global-weekend').value = store.weekendDaily ?? 1500;
+simulate();
+renderDashboard();
+</script>
+</body>
+</html>
